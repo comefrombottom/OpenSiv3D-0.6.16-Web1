@@ -661,6 +661,37 @@ struct TextBox {
 
 void Main()
 {
+
+	//https://github.com/Raclamusi/OpenSiv3D/issues/7 BackSpaceが効かない問題の回避策
+#if SIV3D_PLATFORM(WEB) 
+	EM_ASM({
+		let keyDownEvent = null;
+		let timeoutId = null;
+
+		addEventListener("keydown", function(event) {
+			if (!event.isTrusted) {
+				return;
+			}
+			keyDownEvent = event;
+		});
+
+		addEventListener("keyup", function(event) {
+			if (!event.isTrusted) {
+				return;
+			}
+			const keyUpEvent = event;
+			if (keyDownEvent.timeStamp == keyUpEvent.timeStamp) {
+				clearTimeout(timeoutId);
+				dispatchEvent(keyDownEvent);
+				timeoutId = setTimeout(function() {
+					dispatchEvent(keyUpEvent);
+					timeoutId = null;
+				}, 100);
+			}
+		});
+		});
+#endif
+
 	// Scene::SetBackground(ColorF(1));
 
 	//Window::SetStyle(WindowStyle::Sizable);
