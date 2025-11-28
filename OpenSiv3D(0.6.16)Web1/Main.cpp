@@ -10,7 +10,7 @@ void UpdateText(String& text, int32& cursorPos, int32& selectEndPos, const TextI
 	auto eraseSelection = [&]() {
 		int32 minIndex = Min(cursorPos, selectEndPos);
 		int32 maxIndex = Max(cursorPos, selectEndPos);
-		text.erase(minIndex, maxIndex - minIndex);
+		//text.erase(minIndex, maxIndex - minIndex);
 		cursorPos = minIndex;
 		selectEndPos = minIndex;
 		};
@@ -120,6 +120,8 @@ struct OneLineEditableText {
 
 	int32 lastCaretIndex = -1;
 
+	String previousText;
+
 public:
 	OneLineEditableText() = default;
 
@@ -154,7 +156,7 @@ public:
 
 		int32 height = static_cast<int32>(Ceil(font.height() * scale));
 
-		String prevText = text;
+		int32 prevCaretIndex = caretIndex;
 
 		String prevEditingText = editingText;
 		editingText = isFocused ? TextInput::GetEditingText() : String();
@@ -191,6 +193,8 @@ public:
 
 
 # if SIV3D_PLATFORM(WEB)
+		/*static String prevSyncedText;
+		static int32 prevSyncedCaretIndex = -1;*/
 
 		Platform::Web::TextInput::SetFocusToTextInput(isFocused);
 
@@ -198,17 +202,24 @@ public:
 		{
 			if (lastCaretIndex != caretIndex)
 			{
-				Platform::Web::TextInput::SyncronizeText(text);
+				/*Platform::Web::TextInput::SyncronizeText(text);
 				Platform::Web::TextInput::SetCursorIndex(caretIndex);
+
+				prevSyncedText = text;
+				prevSyncedCaretIndex = caretIndex;*/
+
 			}
 			else if (auto currentCursorPos = Platform::Web::TextInput::GetCursorIndex(); lastCaretIndex != currentCursorPos)
 			{
-				caretIndex = currentCursorPos;
+				// caretIndex = currentCursorPos;
 			}
 
-			lastCaretIndex = caretIndex;
+			// lastCaretIndex = caretIndex;
 
 		}
+
+		/*PrintDebug(prevSyncedText);
+		PrintDebug(prevSyncedCaretIndex);*/
 
 		PrintDebug(Platform::Web::TextInput::GetCandicateCursorIndex());
 
@@ -275,7 +286,7 @@ public:
 			UpdateText(text, caretIndex, selectionEndIndex, TextInputMode::AllowBackSpaceDelete);
 		}
 
-		bool textChanged = (prevText != text);
+		bool textChanged = (previousText != text);
 
 		if (textChanged) {
 			glyphs = font.getGlyphs(text);
@@ -430,8 +441,37 @@ public:
 
 		}
 
+#if SIV3D_PLATFORM(WEB)
+		static String prevSyncedText;
+		static int32 prevSyncedCaretIndex = -1;
+
+
+		if (not editingText) {
+
+			if (textChanged)
+			{
+				String text_copy = text;
+				Platform::Web::TextInput::SyncronizeText(text_copy);
+				prevSyncedText = text_copy;
+			}
+
+			if (prevCaretIndex != caretIndex)
+			{
+				Platform::Web::TextInput::SetCursorIndex(caretIndex);
+				prevSyncedCaretIndex = caretIndex;
+			}
+		}
+		
+
+		PrintDebug(prevSyncedText);
+		PrintDebug(prevSyncedCaretIndex);
+#endif
 
 		PrintDebug(editingText);
+
+		for (auto c : editingText) {
+			PrintDebug(U"{} : {}"_fmt(c, ToHex(c)));
+		}
 		PrintDebug(editingGlyphs.size());
 		PrintDebug(caretIndex);
 
@@ -441,7 +481,9 @@ public:
 #if SIV3D_PLATFORM(WINDOWS)
 		std::tie(caretIndexInIME, imeTextCursorLength) = Platform::Windows::TextInput::GetCursorIndex();
 #elif SIV3D_PLATFORM(WEB)
-		caretIndexInIME = Platform::Web::TextInput::GetCursorIndex() - caretIndex;
+		if (editingText) {
+			caretIndexInIME = Platform::Web::TextInput::GetCursorIndex() - caretIndex;
+		}
 #endif
 
 		PrintDebug(caretIndexInIME);
@@ -547,6 +589,8 @@ public:
 		phraseUnderlineEndX += offsetDiff;
 
 
+
+		previousText = text;
 	}
 
 	void draw(const ColorF& textColor = Palette::Black, const ColorF& selectingAreaColor = ColorF(0.0, 0.5, 1.0, 0.2)) const {
