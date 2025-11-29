@@ -454,6 +454,8 @@ public:
 
 			if (lastCaretIndex != caretIndex)
 			{
+				Platform::Web::TextInput::SyncronizeText(text);
+				prevSyncedText = text;
 				Platform::Web::TextInput::SetCursorIndex(caretIndex);
 				prevSyncedCaretIndex = caretIndex;
 			}
