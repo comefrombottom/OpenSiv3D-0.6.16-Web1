@@ -10,7 +10,7 @@ void UpdateText(String& text, int32& cursorPos, int32& selectEndPos, const TextI
 	auto eraseSelection = [&]() {
 		int32 minIndex = Min(cursorPos, selectEndPos);
 		int32 maxIndex = Max(cursorPos, selectEndPos);
-		//text.erase(minIndex, maxIndex - minIndex);
+		text.erase(minIndex, maxIndex - minIndex);
 		cursorPos = minIndex;
 		selectEndPos = minIndex;
 		};
@@ -118,7 +118,7 @@ struct OneLineEditableText {
 
 	double timeAfterCaretStopped = 0.0;
 
-	int32 lastCaretIndex = -1;
+	int32 lastCaretIndex = 0;
 
 	String previousText;
 
@@ -132,7 +132,6 @@ public:
 		, font(_font)
 		, fontSize(_fontSize)
 	{
-		glyphs = font.getGlyphs(text);
 	}
 
 	OneLineEditableText(StringView _text, const Point _topLeft, int32 _width, const Font& _font)
@@ -142,7 +141,6 @@ public:
 		, font(_font)
 		, fontSize(font.fontSize())
 	{
-		glyphs = font.getGlyphs(text);
 	}
 
 	bool hasTextOrEditingText() const
@@ -198,25 +196,25 @@ public:
 
 		Platform::Web::TextInput::SetFocusToTextInput(isFocused);
 
-		if (isFocused && not editingText)
-		{
-			if (lastCaretIndex != caretIndex)
-			{
-				/*Platform::Web::TextInput::SyncronizeText(text);
-				Platform::Web::TextInput::SetCursorIndex(caretIndex);
+		//if (isFocused && not editingText)
+		//{
+		//	if (lastCaretIndex != caretIndex)
+		//	{
+		//		/*Platform::Web::TextInput::SyncronizeText(text);
+		//		Platform::Web::TextInput::SetCursorIndex(caretIndex);
 
-				prevSyncedText = text;
-				prevSyncedCaretIndex = caretIndex;*/
+		//		prevSyncedText = text;
+		//		prevSyncedCaretIndex = caretIndex;*/
 
-			}
-			else if (auto currentCursorPos = Platform::Web::TextInput::GetCursorIndex(); lastCaretIndex != currentCursorPos)
-			{
-				// caretIndex = currentCursorPos;
-			}
+		//	}
+		//	else if (auto currentCursorPos = Platform::Web::TextInput::GetCursorIndex(); lastCaretIndex != currentCursorPos)
+		//	{
+		//		// caretIndex = currentCursorPos;
+		//	}
 
-			// lastCaretIndex = caretIndex;
+		//	// lastCaretIndex = caretIndex;
 
-		}
+		//}
 
 		/*PrintDebug(prevSyncedText);
 		PrintDebug(prevSyncedCaretIndex);*/
@@ -296,7 +294,7 @@ public:
 		if (not editingGlyphs and isFocused) {
 
 			if (KeyShift.pressed()) {
-				selectionEndIndex += (KeyRight.down() - KeyLeft.down());
+				caretIndex += (KeyRight.down() - KeyLeft.down());
 			}
 			else if (caretIndex == selectionEndIndex) {
 				caretIndex += (KeyRight.down() - KeyLeft.down());
@@ -321,7 +319,7 @@ public:
 				if (rightKeyTimeAccum > 0.5)
 				{
 					if (KeyShift.pressed()) {
-						selectionEndIndex++;
+						caretIndex++;
 					}
 					else if (caretIndex == selectionEndIndex) {
 						caretIndex++;
@@ -346,7 +344,7 @@ public:
 				if (leftKeyTimeAccum > 0.5)
 				{
 					if (KeyShift.pressed()) {
-						selectionEndIndex--;
+						caretIndex--;
 					}
 					else if (caretIndex == selectionEndIndex) {
 						caretIndex--;
@@ -450,16 +448,18 @@ public:
 
 			if (textChanged)
 			{
-				String text_copy = text;
-				Platform::Web::TextInput::SyncronizeText(text_copy);
-				prevSyncedText = text_copy;
+				Platform::Web::TextInput::SyncronizeText(text);
+				prevSyncedText = text;
 			}
 
-			if (prevCaretIndex != caretIndex)
+			if (lastCaretIndex != caretIndex)
 			{
 				Platform::Web::TextInput::SetCursorIndex(caretIndex);
 				prevSyncedCaretIndex = caretIndex;
 			}
+
+			lastCaretIndex = caretIndex;
+			previousText = text;
 		}
 		
 
@@ -483,6 +483,7 @@ public:
 #elif SIV3D_PLATFORM(WEB)
 		if (editingText) {
 			caretIndexInIME = Platform::Web::TextInput::GetCursorIndex() - caretIndex;
+			caretIndexInIME = Clamp<int32>(caretIndexInIME, 0, editingGlyphs.size());
 		}
 #endif
 
@@ -590,7 +591,6 @@ public:
 
 
 
-		previousText = text;
 	}
 
 	void draw(const ColorF& textColor = Palette::Black, const ColorF& selectingAreaColor = ColorF(0.0, 0.5, 1.0, 0.2)) const {
